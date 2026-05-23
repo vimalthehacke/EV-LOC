@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { getTrackedLocations } from "./utils/localStorageDb";
+import { getTrackedLocations, clearDatabase } from "./utils/localStorageDb";
 import { TrackedLocation, SystemLog } from "./types";
 import UserBeacon from "./components/UserBeacon";
 import AdminDashboard from "./components/AdminDashboard";
@@ -175,26 +175,28 @@ export default function App() {
 
   // Initialize data on mount
   useEffect(() => {
-    const loadedLocs = getTrackedLocations();
-    setLocations(loadedLocs);
-
-    const initialLogs: SystemLog[] = [
-      {
-        id: "l_1",
-        timestamp: new Date().toLocaleTimeString(),
-        type: "info",
-        message: "LOC-SPY-TRACER Console core ready."
+    // Load tracking coordinates asynchronously from the server database
+    const loadInitialData = async () => {
+      try {
+        const res = await fetch("/api/locations");
+        if (res.ok) {
+          const data = await res.json();
+          setLocations(data);
+          if (data.length > 0) {
+            const syncLog: SystemLog = {
+              id: `sys_${Date.now()}`,
+              timestamp: new Date().toLocaleTimeString(),
+              type: "success",
+              message: `Telemetry server synchronized. Loaded ${data.length} global tracking records.`
+            };
+            setSystemLogs(prev => [syncLog, ...prev]);
+          }
+        }
+      } catch (e) {
+        console.error("Failed to fetch initial telemetry from server", e);
       }
-    ];
-    if (loadedLocs.length > 0) {
-      initialLogs.push({
-        id: "l_2",
-        timestamp: new Date().toLocaleTimeString(),
-        type: "success",
-        message: `Database synchronized. Loaded ${loadedLocs.length} tracking records from LocalStorage.`
-      });
-    }
-    setSystemLogs(initialLogs);
+    };
+    loadInitialData();
 
     // Live ticking time clock indicator
     const timer = setInterval(() => {
@@ -203,32 +205,72 @@ export default function App() {
     return () => clearInterval(timer);
   }, []);
 
-  // Live polling: reload coordinates every 5 seconds in the admin dashboard to sync records
+  // Live polling: reload coordinates every 5 seconds in the admin dashboard from the central server
   useEffect(() => {
-    const interval = setInterval(() => {
-      const freshLocs = getTrackedLocations();
-      setLocations(freshLocs);
+    const interval = setInterval(async () => {
+      try {
+        const res = await fetch("/api/locations");
+        if (res.ok) {
+          const data = await res.json();
+          setLocations(data);
+        }
+      } catch (e) {
+        console.warn("Telemetry live-poll issue:", e);
+      }
     }, 5000);
     return () => clearInterval(interval);
   }, []);
 
   // Update locations list and push console logs
-  const handleLocationLogged = (newLoc: TrackedLocation, log: SystemLog) => {
-    // Reload array to reflect newly appended record
-    const updated = getTrackedLocations();
-    setLocations(updated);
+  const handleLocationLogged = async (newLoc: TrackedLocation, log: SystemLog) => {
+    // First save locally to client storage to enable offline redundancy
+    const updatedLocal = getTrackedLocations();
+    
+    try {
+      // Dispatch tracking coordinate packet to global server
+      const res = await fetch("/api/locations", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify(newLoc)
+      });
+      if (res.ok) {
+        const data = await res.json();
+        // Reload all visitor records globally to display on map immediately
+        const freshRes = await fetch("/api/locations");
+        if (freshRes.ok) {
+          const allLocs = await freshRes.json();
+          setLocations(allLocs);
+        }
+      } else {
+        setLocations(updatedLocal);
+      }
+    } catch (e) {
+      console.warn("Failed posting telemetry packet to central server, using local fallback", e);
+      setLocations(updatedLocal);
+    }
+    
     setSystemLogs(prev => [log, ...prev].slice(0, 15)); // Cap logs history
   };
 
-  const handleDatabaseCleared = () => {
-    const reloaded = getTrackedLocations();
-    setLocations(reloaded);
+  const handleDatabaseCleared = async () => {
+    clearDatabase(); // Purge local storage
+    
+    try {
+      // Purge server database remotely
+      await fetch("/api/locations/clear", { method: "POST" });
+      setLocations([]);
+    } catch (e) {
+      console.error("Failed purging central server database", e);
+      setLocations([]);
+    }
     
     const freshLog: SystemLog = {
       id: `log_${Date.now()}`,
       timestamp: new Date().toLocaleTimeString(),
       type: "warning",
-      message: "ADMIN ACTION: Successfully cleared telemetry tracker database."
+      message: "ADMIN ACTION: Purged global telemetry tracker records across all devices on server."
     };
     setSystemLogs(prev => [freshLog, ...prev].slice(0, 15));
   };

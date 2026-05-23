@@ -177,22 +177,7 @@ export default function UserBeacon({ onLocationLogged }: UserBeaconProps) {
       setCustomDeviceName("Embedded Node");
     }
 
-    // Try to pre-detect actual coordinates to populate mock form if allowed
-    try {
-      if (navigator.geolocation) {
-        navigator.geolocation.getCurrentPosition(
-          (position) => {
-            setLat(position.coords.latitude.toFixed(6));
-            setLng(position.coords.longitude.toFixed(6));
-            setAccuracy(Math.round(position.coords.accuracy));
-          },
-          undefined,
-          { timeout: 3000 }
-        );
-      }
-    } catch (e) {
-      // Squelch permission issues
-    }
+    // Keep defaults clean at startup without calling geolocation automatically on load
   }, []);
 
   // Simulating active device tracking action

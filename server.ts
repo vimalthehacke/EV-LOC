@@ -6,9 +6,52 @@ async function startServer() {
   const app = express();
   const PORT = 3000;
 
-  // Health and fallback API checks first
+  // Enable JSON parsing for incoming telemetry payloads
+  app.use(express.json());
+
+  // Shared in-memory location records database across all visiting clients
+  let globalLocations: any[] = [];
+
+  // Health check endpoint
   app.get("/api/health", (req, res) => {
     res.json({ status: "ok" });
+  });
+
+  // Retrieve current active telemetry location records of all users
+  app.get("/api/locations", (req, res) => {
+    res.json(globalLocations);
+  });
+
+  // Store a newly captured client beacon geolocation transmission
+  app.post("/api/locations", (req, res) => {
+    const loc = req.body;
+    if (!loc) {
+      return res.status(400).json({ error: "No telemetry data provided" });
+    }
+
+    // Standardize IDs and timestamps
+    if (!loc.id) {
+      loc.id = `rec_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`;
+    }
+    if (!loc.timestamp) {
+      loc.timestamp = new Date().toISOString();
+    }
+
+    // Insert at front of active stack
+    globalLocations.unshift(loc);
+
+    // Bound memory footprint to 500 entries
+    if (globalLocations.length > 500) {
+      globalLocations = globalLocations.slice(0, 500);
+    }
+
+    res.json(loc);
+  });
+
+  // Clear server telemetry records
+  app.post("/api/locations/clear", (req, res) => {
+    globalLocations = [];
+    res.json({ success: true, message: "Global coordinates tracking database has been purged." });
   });
 
   // Single-page-app routing fallback for specific direct paths like admin-16

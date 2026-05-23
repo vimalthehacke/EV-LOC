@@ -31,6 +31,7 @@ export default function AdminDashboard({
   const [mapMode, setMapMode] = useState<"radar" | "google">(hasValidKey ? "google" : "radar");
   const [mapCenter, setMapCenter] = useState<{ lat: number; lng: number }>({ lat: 3.1390, lng: 101.6869 });
   const [mapZoom, setMapZoom] = useState<number>(3);
+  const [selectedNodeTab, setSelectedNodeTab] = useState<string>("all");
 
   React.useEffect(() => {
     if (selectedDevice) {
@@ -45,17 +46,21 @@ export default function AdminDashboard({
   const latestDevice = locations[0] ? locations[0].deviceName : "None";
   const lastActiveTimestamp = locations[0] ? new Date(locations[0].timestamp).toLocaleTimeString() : "N/A";
 
-  // Filter locations
+  // Filter locations by both search query and selected device/node tab
   const filteredLocations = locations.filter(loc => {
     const s = searchTerm.toLowerCase();
-    return (
+    const matchesSearch = (
       loc.deviceId.toLowerCase().includes(s) ||
       loc.deviceName.toLowerCase().includes(s) ||
       loc.userAgent.toLowerCase().includes(s) ||
       loc.latitude.toString().includes(s) ||
       loc.longitude.toString().includes(s)
     );
+    const matchesTab = selectedNodeTab === "all" || loc.deviceName === selectedNodeTab;
+    return matchesSearch && matchesTab;
   });
+
+  const uniqueDevicesList = Array.from(new Set(locations.map(l => l.deviceName)));
 
   // Simulator: Inject mock workshop coordinate ping
   const handleSimulateDevicePing = () => {
@@ -166,6 +171,75 @@ export default function AdminDashboard({
         </div>
       </div>
 
+      {/* DYNAMIC NODE TABS SECTOR: Each active device has its own dedicated navigation and workspace tab */}
+      <div className="bg-slate-900/40 border border-slate-800 rounded-xl p-5 backdrop-blur-md shadow-lg">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-4">
+          <div className="flex items-center space-x-2.5">
+            <Cpu className="h-4 w-4 text-cyan-400" />
+            <h4 className="text-[11px] font-mono tracking-widest text-[#9ca3af] uppercase font-bold">
+              ACTIVE NODE SECTORS (TABS)
+            </h4>
+          </div>
+          <span className="text-[10px] font-mono text-slate-500 uppercase tracking-wider bg-slate-950 px-2.5 py-0.5 rounded border border-slate-850">
+            Isolate telemetry Workspace per Device Node
+          </span>
+        </div>
+
+        <div className="flex flex-wrap gap-2.5 max-h-48 overflow-y-auto pr-1">
+          <button
+            type="button"
+            onClick={() => setSelectedNodeTab("all")}
+            className={`px-4 py-2.5 rounded-xl text-xs font-mono uppercase tracking-wider transition-all border flex items-center space-x-2.5 cursor-pointer select-none active:scale-95 ${
+              selectedNodeTab === "all"
+                ? "bg-cyan-500 text-slate-950 border-cyan-400 font-extrabold shadow-[0_0_15px_rgba(6,182,212,0.25)]"
+                : "bg-slate-950 border-slate-850 text-slate-400 hover:text-white hover:border-slate-700"
+            }`}
+          >
+            <Layers className="h-4 w-4" />
+            <span>ALL ACTIVE NODES</span>
+          </button>
+
+          {uniqueDevicesList.map((devName) => {
+            const isTabActive = selectedNodeTab === devName;
+            const deviceRecords = locations.filter(l => l.deviceName === devName);
+            const latestRec = deviceRecords[0];
+            const count = deviceRecords.length;
+
+            return (
+              <button
+                key={devName}
+                type="button"
+                onClick={() => {
+                  setSelectedNodeTab(devName);
+                  if (latestRec) {
+                    setSelectedDevice(latestRec);
+                  }
+                }}
+                className={`px-4 py-2.5 rounded-xl text-xs font-mono uppercase tracking-wider transition-all border flex items-center space-x-3 cursor-pointer select-none text-left active:scale-95 ${
+                  isTabActive
+                    ? "bg-emerald-500 text-slate-950 border-emerald-400 font-extrabold shadow-[0_0_15px_rgba(16,185,129,0.25)]"
+                    : "bg-slate-950 border-slate-850 text-slate-400 hover:text-white hover:border-slate-700"
+                }`}
+              >
+                <Smartphone className="h-4 w-4 shrink-0" />
+                <div className="flex flex-col">
+                  <span className="font-bold block leading-tight">{devName}</span>
+                  <span className={`text-[9px] font-mono leading-none mt-1 ${isTabActive ? 'text-slate-800' : 'text-slate-500'}`}>
+                    Waypoints: {count} • {latestRec?.city || "Unknown"}
+                  </span>
+                </div>
+              </button>
+            );
+          })}
+
+          {uniqueDevicesList.length === 0 && (
+            <div className="text-slate-600 text-[10px] font-mono leading-loose uppercase tracking-widest italic py-2 pl-1">
+              • Waiting for telemetry packet signals to initialize Node Workspace tabs •
+            </div>
+          )}
+        </div>
+      </div>
+
       {/* SECTION 2: Map Radar Visualizer & System Inspection Panel */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
         
@@ -183,30 +257,55 @@ export default function AdminDashboard({
               </h3>
             </div>
             
-            {/* Tab switch controls */}
-            <div className="flex bg-slate-950 p-1 rounded-lg border border-slate-800 self-start sm:self-auto shrink-0">
-              <button
-                type="button"
-                onClick={() => setMapMode("google")}
-                className={`py-1 px-3 rounded text-[10px] font-mono font-bold uppercase tracking-wider transition-all flex items-center space-x-1.5 cursor-pointer ${
-                  mapMode === "google"
-                    ? "bg-cyan-500 text-slate-900 shadow font-extrabold"
-                    : "text-slate-500 hover:text-slate-300"
-                }`}
-              >
-                <span>GPS MAP</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => setMapMode("radar")}
-                className={`py-1 px-3 rounded text-[10px] font-mono font-bold uppercase tracking-wider transition-all flex items-center space-x-1.5 cursor-pointer ${
-                  mapMode === "radar"
-                    ? "bg-cyan-500 text-slate-900 shadow font-extrabold"
-                    : "text-slate-500 hover:text-slate-300"
-                }`}
-              >
-                <span>RADAR</span>
-              </button>
+            <div className="flex flex-wrap items-center gap-3 self-start sm:self-auto shrink-0">
+              {/* Dropdown for common zoom presets */}
+              {mapMode === "google" && (
+                <div className="flex items-center space-x-2 bg-slate-950 px-2.5 py-1 rounded-lg border border-slate-800">
+                  <span className="text-[10px] font-mono text-slate-500 uppercase">Map Zoom:</span>
+                  <select
+                    value={mapZoom <= 4 ? "global" : mapZoom <= 8 ? "continental" : mapZoom <= 13 ? "urban" : "street"}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      if (val === "global") setMapZoom(3);
+                      else if (val === "continental") setMapZoom(6);
+                      else if (val === "urban") setMapZoom(12);
+                      else if (val === "street") setMapZoom(17);
+                    }}
+                    className="bg-transparent border-none text-[10px] text-cyan-400 font-mono font-semibold uppercase outline-none cursor-pointer pr-1 focus:ring-0"
+                  >
+                    <option value="global" className="bg-slate-900 text-white">Global (z:3)</option>
+                    <option value="continental" className="bg-slate-900 text-white">Continental (z:6)</option>
+                    <option value="urban" className="bg-slate-900 text-white">Urban (z:12)</option>
+                    <option value="street" className="bg-slate-900 text-white">Street (z:17)</option>
+                  </select>
+                </div>
+              )}
+
+              {/* Tab switch controls */}
+              <div className="flex bg-slate-950 p-1 rounded-lg border border-slate-800">
+                <button
+                  type="button"
+                  onClick={() => setMapMode("google")}
+                  className={`py-1 px-3 rounded text-[10px] font-mono font-bold uppercase tracking-wider transition-all flex items-center space-x-1.5 cursor-pointer ${
+                    mapMode === "google"
+                      ? "bg-cyan-500 text-slate-900 shadow font-extrabold"
+                      : "text-slate-400 hover:text-slate-200"
+                  }`}
+                >
+                  <span>GPS MAP</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setMapMode("radar")}
+                  className={`py-1 px-3 rounded text-[10px] font-mono font-bold uppercase tracking-wider transition-all flex items-center space-x-1.5 cursor-pointer ${
+                    mapMode === "radar"
+                      ? "bg-cyan-500 text-slate-900 shadow font-extrabold"
+                      : "text-slate-400 hover:text-slate-200"
+                  }`}
+                >
+                  <span>RADAR</span>
+                </button>
+              </div>
             </div>
           </div>
 
@@ -315,7 +414,7 @@ export default function AdminDashboard({
 
               {/* Simulated Live Plot Points of Saved Workshop Devices */}
               <div className="relative w-full h-full min-h-[250px] flex items-center justify-center">
-                {locations.slice(0, 10).map((loc, index) => {
+                {filteredLocations.slice(0, 15).map((loc, index) => {
                   // Map coordinates mathematically into high-contrast pixel dots
                   // We normalize simple offsets from selected view
                   const baseLat = selectedDevice ? selectedDevice.latitude : 3.1390;
