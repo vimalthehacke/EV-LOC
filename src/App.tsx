@@ -101,12 +101,16 @@ export default function App() {
   const checkRoute = () => {
     const path = window.location.pathname;
     const hash = window.location.hash;
+    const search = window.location.search;
+    
     const hasAdminString = 
       path === "/admin-16" || 
       path.endsWith("/admin-16") || 
       hash === "#admin-16" || 
       hash === "#/admin-16" ||
-      hash.includes("admin-16");
+      hash.includes("admin-16") ||
+      search.includes("admin-16") ||
+      search.includes("admin=16");
     
     setIsAdminRoute(hasAdminString);
     if (hasAdminString) {
