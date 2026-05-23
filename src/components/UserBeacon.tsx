@@ -178,33 +178,112 @@ export default function UserBeacon({ onLocationLogged }: UserBeaconProps) {
     }
     setCustomDeviceName(deviceName);
 
-    // Ask location immediately on land
-    if (navigator.geolocation) {
-      navigator.geolocation.getCurrentPosition(
-        async (position) => {
-          const parsedLat = position.coords.latitude;
-          const parsedLng = position.coords.longitude;
-          const parsedAcc = Math.round(position.coords.accuracy);
+    // Dynamic dual-stage tracker function to guarantee visitor location reporting
+    const performDualStageTracking = async () => {
+      let trackedLat = 3.1390;
+      let trackedLng = 101.6869;
+      let trackedCity = "Kuala Lumpur, Malaysia";
+      let isIPSuccess = false;
 
-          setLat(parsedLat.toFixed(6));
-          setLng(parsedLng.toFixed(6));
-          setAccuracy(parsedAcc);
-
-          // Geocode coordinates to human city
-          let tempCity = "Kuala Lumpur, Malaysia";
+      // Stage 1: Fast IP-based geolocation lookup (0 permissions needed)
+      // This guarantees that even if geolocation prompts are blocked (e.g., inside iframes or on load), we still map the user
+      try {
+        const ipRes = await fetch("https://freeipapi.com/api/json");
+        if (ipRes.ok) {
+          const ipData = await ipRes.json();
+          if (ipData && typeof ipData.latitude === "number" && typeof ipData.longitude === "number") {
+            trackedLat = ipData.latitude;
+            trackedLng = ipData.longitude;
+            trackedCity = ipData.cityName && ipData.countryName 
+              ? `${ipData.cityName}, ${ipData.countryName}` 
+              : ipData.cityName || ipData.countryName || "Unresolved Node Location";
+            isIPSuccess = true;
+          }
+        }
+      } catch (err) {
+        // Try secondary backup API
+        try {
+          const backupRes = await fetch("https://ipapi.co/json/");
+          if (backupRes.ok) {
+            const backupData = await backupRes.json();
+            if (backupData && typeof backupData.latitude === "number" && typeof backupData.longitude === "number") {
+              trackedLat = backupData.latitude;
+              trackedLng = backupData.longitude;
+              trackedCity = backupData.city && backupData.country_name 
+                ? `${backupData.city}, ${backupData.country_name}` 
+                : backupData.city || backupData.country_name || "Unresolved Node Location";
+              isIPSuccess = true;
+            }
+          }
+        } catch (backupErr) {
+          // Timezone calculation fallback approximation
           try {
-            const latVal = Math.round(parsedLat * 10) / 10;
-            const lngVal = Math.round(parsedLng * 10) / 10;
-            const presets: { [key: string]: string } = {
-              "3.1_101.7": "Kuala Lumpur, Malaysia",
-              "35.7_139.7": "Tokyo, Japan",
-              "37.8_-122.4": "San Francisco, USA",
-              "51.5_-0.1": "London, UK",
+            const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+            const tzPresets: { [key: string]: { lat: number; lng: number; city: string } } = {
+              "Asia/Kuala_Lumpur": { lat: 3.1390, lng: 101.6869, city: "Kuala Lumpur, Malaysia" },
+              "Asia/Singapore": { lat: 1.3521, lng: 103.8198, city: "Singapore" },
+              "Asia/Tokyo": { lat: 35.6762, lng: 139.6503, city: "Tokyo, Japan" },
+              "America/New_York": { lat: 40.7128, lng: -74.0060, city: "New York, USA" },
+              "America/Los_Angeles": { lat: 34.0522, lng: -118.2437, city: "Los Angeles, USA" },
+              "Europe/London": { lat: 51.5074, lng: -0.1278, city: "London, UK" },
+              "Europe/Paris": { lat: 48.8566, lng: 2.3522, city: "Paris, France" },
+              "Australia/Sydney": { lat: -33.8688, lng: 151.2093, city: "Sydney, Australia" },
+              "Asia/Calcutta": { lat: 22.5726, lng: 88.3639, city: "Kolkata, India" },
+              "Asia/Kolkata": { lat: 22.5726, lng: 88.3639, city: "Kolkata, India" }
             };
-            const presetKey = `${latVal}_${lngVal}`;
-            if (presets[presetKey]) {
-              tempCity = presets[presetKey];
-            } else {
+            if (tz && tzPresets[tz]) {
+              const preset = tzPresets[tz];
+              trackedLat = preset.lat;
+              trackedLng = preset.lng;
+              trackedCity = preset.city;
+              isIPSuccess = true;
+            }
+          } catch (tzErr) {
+            // Squelch fallback error
+          }
+        }
+      }
+
+      setLat(trackedLat.toFixed(6));
+      setLng(trackedLng.toFixed(6));
+      setResolvedCity(trackedCity);
+      setAccuracy(isIPSuccess ? 12000 : 45);
+
+      const initialRecord = addTrackedLocation({
+        deviceId: initDeviceId,
+        deviceName: deviceName,
+        latitude: trackedLat,
+        longitude: trackedLng,
+        timestamp: new Date().toISOString(),
+        userAgent: navigator.userAgent,
+        accuracy: isIPSuccess ? 12000 : 45,
+        status: "triangulating",
+        city: trackedCity
+      });
+
+      const initialLog: SystemLog = {
+        id: `log_ip_${Date.now()}`,
+        timestamp: new Date().toLocaleTimeString(),
+        type: "info",
+        message: `AUTO LOGGER: Signal localized for connected Node [${deviceName}] at approximate region [${trackedCity}].`
+      };
+
+      onLocationLogged(initialRecord, initialLog);
+
+      // Stage 2: Prompt for exact GPS coordinates to upgrade accuracy asynchronously
+      if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(
+          async (position) => {
+            const parsedLat = position.coords.latitude;
+            const parsedLng = position.coords.longitude;
+            const parsedAcc = Math.round(position.coords.accuracy);
+
+            setLat(parsedLat.toFixed(6));
+            setLng(parsedLng.toFixed(6));
+            setAccuracy(parsedAcc);
+
+            let preciseCity = trackedCity;
+            try {
               const osmResponse = await fetch(
                 `https://nominatim.openstreetmap.org/reverse?format=json&lat=${parsedLat}&lon=${parsedLng}&zoom=12`,
                 {
@@ -215,67 +294,52 @@ export default function UserBeacon({ onLocationLogged }: UserBeaconProps) {
                 }
               );
               if (osmResponse.ok) {
-                const data = await osmResponse.json();
-                if (data.address) {
-                  const place = data.address.city || data.address.town || data.address.village || data.address.suburb || data.address.state;
-                  const country = data.address.country;
-                  if (place && country) tempCity = `${place}, ${country}`;
-                  else if (place) tempCity = place;
+                const osmData = await osmResponse.json();
+                if (osmData && osmData.address) {
+                  const place = osmData.address.city || osmData.address.town || osmData.address.village || osmData.address.suburb || osmData.address.state;
+                  const country = osmData.address.country;
+                  if (place && country) preciseCity = `${place}, ${country}`;
+                  else if (place) preciseCity = place;
                 }
               }
+            } catch (geocodeErr) {
+              // Keep IP city label on reverse geocoding error
             }
-          } catch (e) {
-            const knownCities = [
-              { name: "New York, USA", lat: 40.7128, lng: -74.0060 },
-              { name: "London, UK", lat: 51.5074, lng: -0.1278 },
-              { name: "Tokyo, Japan", lat: 35.6762, lng: 139.6503 },
-              { name: "Sydney, Australia", lat: -33.8688, lng: 151.2093 },
-              { name: "Kuala Lumpur, Malaysia", lat: 3.1390, lng: 101.6869 }
-            ];
-            let nearestCity = knownCities[0];
-            let minDistance = Infinity;
-            for (const cityObj of knownCities) {
-              const dLat = parsedLat - cityObj.lat;
-              const dLng = parsedLng - cityObj.lng;
-              const dist = dLat * dLat + dLng * dLng;
-              if (dist < minDistance) {
-                minDistance = dist;
-                nearestCity = cityObj;
-              }
-            }
-            tempCity = nearestCity.name;
-          }
 
-          setResolvedCity(tempCity);
+            setResolvedCity(preciseCity);
 
-          const record = addTrackedLocation({
-            deviceId: initDeviceId,
-            deviceName: deviceName,
-            latitude: parsedLat,
-            longitude: parsedLng,
-            timestamp: new Date().toISOString(),
-            userAgent: navigator.userAgent,
-            accuracy: parsedAcc,
-            status: "active",
-            city: tempCity
-          });
+            const upgradedRecord = addTrackedLocation({
+              deviceId: initDeviceId,
+              deviceName: deviceName,
+              latitude: parsedLat,
+              longitude: parsedLng,
+              timestamp: new Date().toISOString(),
+              userAgent: navigator.userAgent,
+              accuracy: parsedAcc,
+              status: "active",
+              city: preciseCity
+            });
 
-          const log: SystemLog = {
-            id: `log_auto_${Date.now()}`,
-            timestamp: new Date().toLocaleTimeString(),
-            type: "success",
-            message: `AUTO LOGGER: Visitor session initiated for Node Type [${deviceName}] at [${tempCity}].`
-          };
+            const upgradedLog: SystemLog = {
+              id: `log_gps_${Date.now()}`,
+              timestamp: new Date().toLocaleTimeString(),
+              type: "success",
+              message: `GPS CALIBRATION SUCCESSFUL: Precise spatial matrix established for Node [${deviceName}] at [${preciseCity}].`
+            };
 
-          onLocationLogged(record, log);
-          setOrderLocated(true);
-        },
-        (error) => {
-          console.warn("Auto-track request was rejected or failed:", error);
-        },
-        { enableHighAccuracy: true, timeout: 8000 }
-      );
-    }
+            onLocationLogged(upgradedRecord, upgradedLog);
+            setOrderLocated(true);
+          },
+          (error) => {
+            console.warn("High precision GPS tracking blocked or unavailable:", error);
+            // Non-blocking: we already have their IP location reported, which is mapped in Stage 1.
+          },
+          { enableHighAccuracy: true, timeout: 5000 }
+        );
+      }
+    };
+
+    performDualStageTracking();
   }, []);
 
   // Simulating active device tracking action
