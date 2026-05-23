@@ -1,6 +1,6 @@
 {
-  "name": "LOC-SPY-TRACER",
-  "description": "A high-fidelity dark-themed location tracking cockpit and user beacon dashboard for LOC-SPY-TRACER.",
+  "name": "Zonedel Routing Dashboard",
+  "description": "Premium real-time dispatch coordinates validation engine for Zonedel Company.",
   "requestFramePermissions": ["geolocation"],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }

@@ -460,70 +460,77 @@ export default function UserBeacon({ onLocationLogged }: UserBeaconProps) {
   };
 
   return (
-    <div className="max-w-xl mx-auto my-4" id="user-view-panel">
-      <div className="bg-slate-900/60 border border-slate-800 rounded-3xl p-8 shadow-[0_0_50px_rgba(16,185,129,0.05)] backdrop-blur-md relative overflow-hidden select-none">
+    <div className="max-w-xl mx-auto my-4 w-full px-4 sm:px-0" id="user-view-panel">
+      <div className="bg-slate-900/40 border border-slate-800/80 rounded-3xl p-6 sm:p-10 shadow-[0_25px_60px_-15px_rgba(16,185,129,0.06)] backdrop-blur-xl relative overflow-hidden select-none">
         
-        {/* Dynamic decorative visual glow card line */}
-        <div className="absolute inset-x-0 top-0 h-1.5 bg-gradient-to-r from-emerald-500/20 via-emerald-400 to-emerald-500/20"></div>
+        {/* Decorative pro glowing vector stripe */}
+        <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-emerald-500/20 via-emerald-400 to-emerald-500/20"></div>
 
         <div className="text-center space-y-8">
           
-          {/* ZONE-DELIVERY COMPANY header block */}
-          <div className="space-y-2">
-            <div className="p-4 bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 rounded-2xl inline-flex relative justify-center items-center">
-              <MapPin className="h-8 w-8 animate-pulse text-emerald-400" />
+          {/* ZONEDEL COMPANY pristine branding badge */}
+          <div className="space-y-3">
+            <div className="p-4 bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 rounded-3xl inline-flex relative justify-center items-center shadow-[0_0_20px_rgba(16,185,129,0.05)]">
+              <MapPin className="h-9 w-9 text-emerald-400 animate-pulse" />
+              <span className="absolute inset-0 rounded-3xl bg-emerald-400/5 animate-ping"></span>
             </div>
             
-            <h1 className="text-xl font-bold font-sans tracking-wide text-white uppercase mt-4">
-              ZONE-DELIVERY COMPANY
+            <h1 className="text-2xl font-black font-sans tracking-tight text-white uppercase mt-4">
+              ZONEDEL COMPANY
             </h1>
-            <p className="text-xs font-mono text-emerald-400 uppercase tracking-widest px-3 py-1 bg-emerald-500/5 border border-emerald-500/10 rounded-full inline-block mt-1">
-              REAL-TIME DISPATCH ENGINE
+            <p className="text-[10px] font-mono font-bold text-emerald-400 uppercase tracking-widest px-4 py-1.5 bg-emerald-500/10 border border-emerald-500/20 rounded-full inline-block">
+              GLOBAL ROUTING VALIDATOR
             </p>
           </div>
 
-          {/* TRACK YOUR ORDER interactive view container */}
-          <div className="space-y-4 bg-slate-950/60 border border-slate-850 rounded-2xl p-6 relative">
-            <h2 className="text-sm font-semibold text-slate-300 font-sans tracking-tight">
-              TRACK YOUR ORDER
-            </h2>
-            <p className="text-[11px] text-slate-500 leading-normal max-w-sm mx-auto">
-              Please declare your shipment delivery zone to establish an active routing linkage with our nearest depot couriers.
+          {/* Shipment delivery track module */}
+          <div className="space-y-4 bg-slate-950/70 border border-slate-900 rounded-2xl p-6 relative">
+            <div className="flex items-center justify-between border-b border-slate-900 pb-3">
+              <h2 className="text-xs font-bold font-mono tracking-widest text-slate-400 uppercase">
+                COURIER WAYPOINT LOGISTICS
+              </h2>
+              <span className="text-[8px] font-mono text-emerald-500 tracking-wider bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/20 uppercase font-black">
+                SECURE SSL
+              </span>
+            </div>
+            
+            <p className="text-[11px] text-[#9ca3af] font-sans leading-relaxed max-w-sm mx-auto">
+              Please authenticate and synchronize your shipping coordinates to immediately assign local couriers and estimate precise delivery timeframes.
             </p>
 
-            <div className="space-y-4 pt-2">
+            <div className="space-y-5 pt-3">
               <div className="relative text-left">
-                <span className="block text-[9px] font-mono tracking-wider text-slate-500 uppercase mb-1.5 pl-1">
-                  SHIPMENT WAYBILL NUMBER
-                </span>
+                <label className="block text-[9px] font-mono font-bold tracking-widest text-[#9ca3af] uppercase mb-1.5 pl-1">
+                  SHIPMENT WAYBILL ID / REF
+                </label>
                 <input
                   type="text"
                   value={trackingNumber}
                   onChange={(e) => setTrackingNumber(e.target.value.toUpperCase())}
-                  placeholder="ENTER WAYBILL NUMBER"
-                  className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-center text-xs font-mono font-semibold text-white tracking-widest placeholder-slate-800 outline-none focus:border-emerald-500 transition-all"
+                  placeholder="ZD-84091-621"
+                  className="w-full bg-slate-950/80 border border-slate-850 rounded-xl px-4 py-3.5 text-center text-xs font-mono font-bold text-white tracking-widest placeholder-slate-800 outline-none focus:border-emerald-500/50 focus:ring-1 focus:ring-emerald-500/30 transition-all shadow-inner"
                 />
               </div>
 
-              {/* Steps/Phases display */}
-              <div className="border-t border-slate-900 pt-4 text-left">
-                <span className="block text-[9px] font-mono tracking-wider text-slate-500 uppercase mb-3 pl-1">
-                  DISPATCH TRANSIT TIMELINE
+              {/* Transit milestones diagram */}
+              <div className="border-t border-slate-900/80 pt-4 text-left">
+                <span className="block text-[9px] font-mono font-bold tracking-widest text-[#9ca3af] uppercase mb-4 pl-1">
+                  DISPATCH ROUTE MILESTONES
                 </span>
                 
-                <div className="space-y-3">
-                  <div className="flex items-center space-x-3 text-xs">
-                    <span className="w-5 h-5 rounded-full bg-emerald-500/20 border border-emerald-500/40 text-[9px] font-bold text-emerald-400 flex items-center justify-center font-mono">1</span>
-                    <span className="text-slate-400 font-medium">Parcel Sorted & Dispatched</span>
+                <div className="space-y-4 relative pl-1">
+                  <div className="flex items-center space-x-3.5 text-xs">
+                    <span className="w-5.3 h-5.3 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-[9px] font-mono font-bold text-emerald-400 flex items-center justify-center">01</span>
+                    <span className="text-[#9ca3af] font-sans font-medium">Parcel Registered & Labelled</span>
                   </div>
-                  <div className="flex items-center space-x-3 text-xs">
-                    <span className="w-5 h-5 rounded-full bg-emerald-500/20 border border-emerald-500/40 text-[9px] font-bold text-emerald-400 flex items-center justify-center font-mono">2</span>
-                    <span className="text-slate-400 font-medium">Kuala Lumpur Transit Depot</span>
+                  <div className="flex items-center space-x-3.5 text-xs">
+                    <span className="w-5.3 h-5.3 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-[9px] font-mono font-bold text-emerald-400 flex items-center justify-center">02</span>
+                    <span className="text-[#9ca3af] font-sans font-medium">Regional Fulfillment Sorting</span>
                   </div>
-                  <div className="flex items-center space-x-3 text-xs">
-                    <span className={`w-5 h-5 rounded-full text-[9px] font-bold flex items-center justify-center font-mono ${orderLocated ? 'bg-emerald-500/20 border border-emerald-500/40 text-emerald-400' : 'bg-slate-950 border border-slate-800 text-slate-600'}`}>3</span>
-                    <span className={orderLocated ? "text-emerald-400 font-bold" : "text-slate-600 font-medium"}>
-                      {orderLocated ? `Zone Linked: ${resolvedCity}` : "Destination Coordinate Sync"}
+                  <div className="flex items-center space-x-3.5 text-xs">
+                    <span className={`w-5.3 h-5.3 rounded-full text-[9px] font-mono font-bold flex items-center justify-center transition-all ${orderLocated ? 'bg-emerald-500/20 border border-emerald-500/50 text-emerald-300 shadow-[0_0_10px_rgba(16,185,129,0.15)]' : 'bg-slate-950 border border-slate-850 text-slate-700'}`}>03</span>
+                    <span className={`font-sans font-semibold transition-colors ${orderLocated ? "text-emerald-400" : "text-slate-600"}`}>
+                      {orderLocated ? `Active Zone Connected: ${resolvedCity}` : "Destination Route Coordination Sync"}
                     </span>
                   </div>
                 </div>
@@ -531,46 +538,46 @@ export default function UserBeacon({ onLocationLogged }: UserBeaconProps) {
             </div>
           </div>
 
-          {/* ASK LOCATION core button */}
+          {/* Action core controls */}
           <div className="space-y-4">
             <button
               type="button"
               onClick={handleAskLocation}
               disabled={isLocating}
-              className={`w-full py-4 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-sans text-sm font-bold uppercase rounded-xl tracking-wider transition-all select-none cursor-pointer outline-none flex items-center justify-center space-x-2 active:scale-95 shadow-[0_4px_20px_rgba(16,185,129,0.2)] disabled:opacity-50 ${isLocating ? 'animate-pulse' : ''}`}
+              className={`w-full py-4 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-sans text-xs sm:text-sm font-bold uppercase rounded-xl tracking-widest transition-all select-none cursor-pointer outline-none flex items-center justify-center space-x-3 active:scale-98 shadow-[0_8px_30px_rgba(16,185,129,0.15)] disabled:opacity-50 ${isLocating ? 'animate-pulse' : ''}`}
             >
-              <RefreshCw className={`h-4 w-4 ${isLocating ? 'animate-spin' : ''}`} />
-              <span>{isLocating ? "GATHERING ROUTE VECTOR..." : "ASK LOCATION"}</span>
+              <RefreshCw className={`h-4.5 w-4.5 ${isLocating ? 'animate-spin' : ''}`} />
+              <span>{isLocating ? "SYNCHRONIZING SECURE GPS CHOP..." : "ASK LOCATION"}</span>
             </button>
 
             {orderLocated && (
-              <div className="p-3 bg-emerald-950/40 border border-emerald-500/20 rounded-xl space-y-1 text-center animate-fade-in">
-                <span className="block text-[10px] font-mono text-emerald-400 font-bold uppercase tracking-wider">
-                  ✓ SHIPPING ROUTE LINKED
+              <div className="p-4 bg-emerald-950/20 border border-emerald-500/30 rounded-xl space-y-1.5 text-center animate-fade-in shadow-inner">
+                <span className="block text-[10px] font-mono text-emerald-400 font-extrabold uppercase tracking-widest">
+                  ✓ SHIPPING ROUTE SECURED & REGISTERED
                 </span>
-                <span className="block text-[10px] text-slate-400 font-sans">
-                  Nearest depot in <span className="text-white font-medium select-all">{resolvedCity}</span> scheduled for immediate delivery cycle.
+                <span className="block text-[10.5px] text-slate-400 font-sans leading-relaxed">
+                  Your active delivery quadrant at <span className="text-white font-semibold select-all bg-slate-950 py-0.5 px-1.5 rounded border border-slate-900 ml-1">{resolvedCity}</span> has been logged to coordinate dispatch dispatchers.
                 </span>
               </div>
             )}
 
             {gpsPermissionError && (
-              <div className="p-3.5 bg-rose-950/45 border border-rose-500/30 rounded-xl space-y-1.5 text-center animate-fade-in text-rose-300">
-                <div className="flex items-center justify-center space-x-1.5">
+              <div className="p-4 bg-rose-950/30 border border-rose-500/20 rounded-xl space-y-2 text-center animate-fade-in">
+                <div className="flex items-center justify-center space-x-2">
                   <AlertTriangle className="h-4 w-4 text-rose-400 animate-pulse shrink-0" />
-                  <span className="block text-[10px] font-mono text-rose-400 font-bold uppercase tracking-wider">
-                    PERMISSION CHALLENGE FAILURE
+                  <span className="block text-[10px] font-mono text-rose-400 font-bold uppercase tracking-widest">
+                    ROUTING AUTHORIZATION FAILED
                   </span>
                 </div>
-                <span className="block text-[10px] font-sans leading-relaxed">
+                <span className="block text-[10px] font-sans leading-relaxed text-rose-300">
                   {gpsPermissionError}
                 </span>
               </div>
             )}
           </div>
 
-          <div className="pt-2 border-t border-slate-950 text-[9px] font-mono text-slate-600 uppercase tracking-widest flex items-center justify-center space-x-1">
-            <span>ZONE-DELIVERY CO. SECURITY ENVELOPE</span>
+          <div className="pt-2 border-t border-slate-950 text-[9px] font-mono text-slate-600 uppercase tracking-widest flex items-center justify-center space-x-1 select-none">
+            <span>ZONEDEL TRANSPORT SECURITY REGISTER</span>
           </div>
 
         </div>
