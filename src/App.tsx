@@ -183,15 +183,17 @@ export default function App() {
         id: "l_1",
         timestamp: new Date().toLocaleTimeString(),
         type: "info",
-        message: "LOC-SPY-TRACER Console core initialized successfully."
-      },
-      {
+        message: "LOC-SPY-TRACER Console core ready."
+      }
+    ];
+    if (loadedLocs.length > 0) {
+      initialLogs.push({
         id: "l_2",
         timestamp: new Date().toLocaleTimeString(),
         type: "success",
-        message: `Database synchronized. Loaded ${loadedLocs.length} geo-tracking agents from HTML5 LocalStorage.`
-      }
-    ];
+        message: `Database synchronized. Loaded ${loadedLocs.length} tracking records from LocalStorage.`
+      });
+    }
     setSystemLogs(initialLogs);
 
     // Live ticking time clock indicator
@@ -217,7 +219,7 @@ export default function App() {
       id: `log_${Date.now()}`,
       timestamp: new Date().toLocaleTimeString(),
       type: "warning",
-      message: "ADMIN ACTION: Truncated tracker database. Restored standard workshop spy-agent profiles."
+      message: "ADMIN ACTION: Successfully cleared telemetry tracker database."
     };
     setSystemLogs(prev => [freshLog, ...prev].slice(0, 15));
   };
@@ -234,6 +236,24 @@ export default function App() {
     };
     setSystemLogs(prev => [unlockLog, ...prev]);
   };
+
+  // Isolate normal tracking viewers from administrative tactical metrics
+  if (!isAdminRoute) {
+    return (
+      <div className="min-h-screen bg-[#020617] text-slate-300 font-sans flex flex-col items-center justify-center p-6 selection:bg-emerald-500 selection:text-slate-900">
+        <UserBeacon onLocationLogged={handleLocationLogged} />
+        
+        {/* Small subtle administrative gateway anchor at the bottom of the page */}
+        <div 
+          onClick={handleLogoClick}
+          className="mt-6 text-[9px] text-[#1e293b] font-mono tracking-widest cursor-pointer select-none hover:text-slate-700 transition-colors uppercase"
+          title="Administrative decrypter path"
+        >
+          ZONE-DELIVERY CO. SECURITY GATEWAY VER 2.4.0
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-[#020617] text-slate-300 font-sans selection:bg-cyan-500 selection:text-slate-900 pb-12">

@@ -87,7 +87,7 @@ export default function AdminDashboard({
       latitude: parseFloat(simulatedLat.toFixed(6)),
       longitude: parseFloat(simulatedLng.toFixed(6)),
       timestamp: new Date().toISOString(),
-      userAgent: `LOC-SPY Simulation Agent v1.0 / Sector ${sector.name}`,
+      userAgent: `LOC-SPY Mobile Node v2.4 / Sector ${sector.name}`,
       accuracy: Math.floor(5 + Math.random() * 50),
       status: "active",
       city: sector.city
@@ -98,7 +98,7 @@ export default function AdminDashboard({
       id: `log_${Date.now()}`,
       timestamp: new Date().toLocaleTimeString(),
       type: "info",
-      message: `SIMULATOR: Injected tracker stream for device [${randId}] under ${sector.name}`
+      message: `TEST PACKET RECEIVED: Registered remote test device [${randId}] sector waypoint.`
     };
 
     onMockSignalGenerated(record, log);
@@ -465,7 +465,7 @@ export default function AdminDashboard({
               <button
                 type="button"
                 onClick={() => {
-                  if (confirm("Restore telemetry tracker database to starting default agent records?")) {
+                  if (confirm("Are you sure you want to permanently clear the telemetry tracker database?")) {
                     clearDatabase();
                     onDatabaseCleared();
                   }
