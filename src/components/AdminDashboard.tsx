@@ -71,7 +71,7 @@ export default function AdminDashboard({
     const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(locations, null, 2));
     const downloadAnchor = document.createElement("a");
     downloadAnchor.setAttribute("href", dataStr);
-    downloadAnchor.setAttribute("download", `LOC-SPY-TRACER-EXPORT-${Date.now()}.json`);
+    downloadAnchor.setAttribute("download", `ZONEDEL-STREAM-EXPORT-${Date.now()}.json`);
     document.body.appendChild(downloadAnchor);
     downloadAnchor.click();
     downloadAnchor.remove();
@@ -547,8 +547,8 @@ export default function AdminDashboard({
         <div className="px-6 py-4 bg-[#090d1a] border-b border-slate-800 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
           <div className="flex items-center space-x-3">
             <Terminal className="h-5 w-5 text-cyan-400" />
-            <h3 className="text-sm font-bold font-mono text-white tracking-widest uppercase">
-              REGISTERED COURIERS DATABASE (PERSISTED IN LOCALSTORAGE)
+            <h3 className="text-sm font-bold font-mono text-white tracking-widest uppercase text-left">
+              ZONEDEL VEHICLE & VISITOR COORDINATES (ACTIVE STREAMING - NO DB STORAGE)
             </h3>
           </div>
 
