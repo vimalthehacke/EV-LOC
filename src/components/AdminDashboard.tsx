@@ -401,7 +401,7 @@ export default function AdminDashboard({
                 <div className="bg-slate-950 p-3.5 rounded-lg border border-slate-855 space-y-2">
                   <span className="block text-[10px] text-cyan-400 font-bold uppercase tracking-wider">TELEMETRY PACK SPEC:</span>
                   <div className="grid grid-cols-2 gap-2 text-white">
-                    <span className="text-slate-500">DEVICE TYPE:</span>
+                    <span className="text-slate-500">NODE TYPE:</span>
                     <span className="text-right font-sans font-medium truncate">{selectedDevice.deviceName}</span>
 
                     <span className="text-slate-500">RESOLVED CITY:</span>
@@ -509,7 +509,7 @@ export default function AdminDashboard({
             <table className="w-full text-left border-collapse">
               <thead>
                 <tr className="border-b border-slate-850 bg-slate-950/80 text-[10px] font-mono tracking-widest text-slate-500 uppercase">
-                  <th className="py-3 px-6">DEVICE DETAILS</th>
+                  <th className="py-3 px-6">NODE TYPE / DEVICE NAME</th>
                   <th className="py-3 px-6">CRYPTOGRAPHIC ID</th>
                   <th className="py-3 px-6 text-center">COORDINATES</th>
                   <th className="py-3 px-6 text-center">ACCURACY</th>

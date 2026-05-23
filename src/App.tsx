@@ -203,6 +203,15 @@ export default function App() {
     return () => clearInterval(timer);
   }, []);
 
+  // Live polling: reload coordinates every 5 seconds in the admin dashboard to sync records
+  useEffect(() => {
+    const interval = setInterval(() => {
+      const freshLocs = getTrackedLocations();
+      setLocations(freshLocs);
+    }, 5000);
+    return () => clearInterval(interval);
+  }, []);
+
   // Update locations list and push console logs
   const handleLocationLogged = (newLoc: TrackedLocation, log: SystemLog) => {
     // Reload array to reflect newly appended record
