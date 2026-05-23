@@ -541,16 +541,8 @@ export default function AdminDashboard({
             )}
           </div>
 
-          {/* Quick Simulation injections */}
+          {/* Clean telemetry database actions */}
           <div className="pt-4 border-t border-slate-800 space-y-2">
-            <button
-              type="button"
-              onClick={handleSimulateDevicePing}
-              className="w-full py-2 bg-cyan-500/10 hover:bg-cyan-500/20 border border-cyan-500/30 text-cyan-400 text-xs font-mono font-bold uppercase rounded-lg tracking-wider flex items-center justify-center space-x-1.5 transition-all outline-none cursor-pointer"
-            >
-              <Terminal className="h-3 w-3" />
-              <span>SIMULATE RANDOM AGENT PING</span>
-            </button>
             
             <div className="flex gap-2">
               <button

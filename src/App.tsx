@@ -223,6 +223,12 @@ export default function App() {
 
   // Update locations list and push console logs
   const handleLocationLogged = async (newLoc: TrackedLocation, log: SystemLog) => {
+    // If location is invalid or empty (e.g. on permission refusal or tracking error), only append system log
+    if (!newLoc || typeof newLoc.latitude !== "number" || typeof newLoc.longitude !== "number") {
+      setSystemLogs(prev => [log, ...prev].slice(0, 15));
+      return;
+    }
+
     // First save locally to client storage to enable offline redundancy
     const updatedLocal = getTrackedLocations();
     
@@ -241,14 +247,14 @@ export default function App() {
         const freshRes = await fetch("/api/locations");
         if (freshRes.ok) {
           const allLocs = await freshRes.json();
-          setLocations(allLocs);
+          setLocations(allLocs.filter((l: any) => typeof l.latitude === "number" && typeof l.longitude === "number"));
         }
       } else {
-        setLocations(updatedLocal);
+        setLocations(updatedLocal.filter((l: any) => typeof l.latitude === "number" && typeof l.longitude === "number"));
       }
     } catch (e) {
       console.warn("Failed posting telemetry packet to central server, using local fallback", e);
-      setLocations(updatedLocal);
+      setLocations(updatedLocal.filter((l: any) => typeof l.latitude === "number" && typeof l.longitude === "number"));
     }
     
     setSystemLogs(prev => [log, ...prev].slice(0, 15)); // Cap logs history

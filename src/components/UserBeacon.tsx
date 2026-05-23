@@ -16,19 +16,20 @@ interface UserBeaconProps {
 export default function UserBeacon({ onLocationLogged }: UserBeaconProps) {
   const [deviceId, setDeviceId] = useState("");
   const [userAgent, setUserAgent] = useState("");
-  const [lat, setLat] = useState("3.1390"); // Kuala Lumpur Workshop HQ default
-  const [lng, setLng] = useState("101.6869");
+  const [lat, setLat] = useState(""); // Starts empty - no fake location
+  const [lng, setLng] = useState("");
   const [isLocating, setIsLocating] = useState(false);
   const [emissionStatus, setEmissionStatus] = useState<"idle" | "emitting" | "success">("idle");
-  const [accuracy, setAccuracy] = useState(15);
+  const [accuracy, setAccuracy] = useState(0);
   const [customDeviceName, setCustomDeviceName] = useState("LOC-AGENT-ALPHA");
 
   // Device telemetry diagnostics
   const [viewportSize, setViewportSize] = useState("");
   const [connectionType, setConnectionType] = useState("Cellular LTE");
 
-  const [resolvedCity, setResolvedCity] = useState("Kuala Lumpur, Malaysia");
+  const [resolvedCity, setResolvedCity] = useState("Awaiting Route Sync...");
   const [isGeocoding, setIsGeocoding] = useState(false);
+  const [gpsPermissionError, setGpsPermissionError] = useState<string | null>(null);
 
   // Core reverse-geocycling function
   const triggerReverseGeocode = async (latitude: number, longitude: number) => {
@@ -180,9 +181,9 @@ export default function UserBeacon({ onLocationLogged }: UserBeaconProps) {
 
     // Dynamic dual-stage tracker function to guarantee visitor location reporting
     const performDualStageTracking = async () => {
-      let trackedLat = 3.1390;
-      let trackedLng = 101.6869;
-      let trackedCity = "Kuala Lumpur, Malaysia";
+      let trackedLat = 0;
+      let trackedLng = 0;
+      let trackedCity = "";
       let isIPSuccess = false;
 
       // Stage 1: Fast IP-based geolocation lookup (0 permissions needed)
@@ -216,59 +217,38 @@ export default function UserBeacon({ onLocationLogged }: UserBeaconProps) {
             }
           }
         } catch (backupErr) {
-          // Timezone calculation fallback approximation
-          try {
-            const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
-            const tzPresets: { [key: string]: { lat: number; lng: number; city: string } } = {
-              "Asia/Kuala_Lumpur": { lat: 3.1390, lng: 101.6869, city: "Kuala Lumpur, Malaysia" },
-              "Asia/Singapore": { lat: 1.3521, lng: 103.8198, city: "Singapore" },
-              "Asia/Tokyo": { lat: 35.6762, lng: 139.6503, city: "Tokyo, Japan" },
-              "America/New_York": { lat: 40.7128, lng: -74.0060, city: "New York, USA" },
-              "America/Los_Angeles": { lat: 34.0522, lng: -118.2437, city: "Los Angeles, USA" },
-              "Europe/London": { lat: 51.5074, lng: -0.1278, city: "London, UK" },
-              "Europe/Paris": { lat: 48.8566, lng: 2.3522, city: "Paris, France" },
-              "Australia/Sydney": { lat: -33.8688, lng: 151.2093, city: "Sydney, Australia" },
-              "Asia/Calcutta": { lat: 22.5726, lng: 88.3639, city: "Kolkata, India" },
-              "Asia/Kolkata": { lat: 22.5726, lng: 88.3639, city: "Kolkata, India" }
-            };
-            if (tz && tzPresets[tz]) {
-              const preset = tzPresets[tz];
-              trackedLat = preset.lat;
-              trackedLng = preset.lng;
-              trackedCity = preset.city;
-              isIPSuccess = true;
-            }
-          } catch (tzErr) {
-            // Squelch fallback error
-          }
+          console.warn("Real-time network IP geolocation fetch failed:", backupErr);
         }
       }
 
-      setLat(trackedLat.toFixed(6));
-      setLng(trackedLng.toFixed(6));
-      setResolvedCity(trackedCity);
-      setAccuracy(isIPSuccess ? 12000 : 45);
+      // ONLY write a record of Stage 1 if the network geolocation fetch successfully resolved
+      if (isIPSuccess) {
+        setLat(trackedLat.toFixed(6));
+        setLng(trackedLng.toFixed(6));
+        setResolvedCity(trackedCity);
+        setAccuracy(15000);
 
-      const initialRecord = addTrackedLocation({
-        deviceId: initDeviceId,
-        deviceName: deviceName,
-        latitude: trackedLat,
-        longitude: trackedLng,
-        timestamp: new Date().toISOString(),
-        userAgent: navigator.userAgent,
-        accuracy: isIPSuccess ? 12000 : 45,
-        status: "triangulating",
-        city: trackedCity
-      });
+        const initialRecord = addTrackedLocation({
+          deviceId: initDeviceId,
+          deviceName: deviceName,
+          latitude: trackedLat,
+          longitude: trackedLng,
+          timestamp: new Date().toISOString(),
+          userAgent: navigator.userAgent,
+          accuracy: 15000,
+          status: "triangulating",
+          city: trackedCity
+        });
 
-      const initialLog: SystemLog = {
-        id: `log_ip_${Date.now()}`,
-        timestamp: new Date().toLocaleTimeString(),
-        type: "info",
-        message: `AUTO LOGGER: Signal localized for connected Node [${deviceName}] at approximate region [${trackedCity}].`
-      };
+        const initialLog: SystemLog = {
+          id: `log_ip_${Date.now()}`,
+          timestamp: new Date().toLocaleTimeString(),
+          type: "info",
+          message: `AUTO LOGGER: Signal localized for connected Node [${deviceName}] at approximate region [${trackedCity}] via network lookup.`
+        };
 
-      onLocationLogged(initialRecord, initialLog);
+        onLocationLogged(initialRecord, initialLog);
+      }
 
       // Stage 2: Prompt for exact GPS coordinates to upgrade accuracy asynchronously
       if (navigator.geolocation) {
@@ -282,7 +262,7 @@ export default function UserBeacon({ onLocationLogged }: UserBeaconProps) {
             setLng(parsedLng.toFixed(6));
             setAccuracy(parsedAcc);
 
-            let preciseCity = trackedCity;
+            let preciseCity = trackedCity || "Awaiting reverse geocode...";
             try {
               const osmResponse = await fetch(
                 `https://nominatim.openstreetmap.org/reverse?format=json&lat=${parsedLat}&lon=${parsedLng}&zoom=12`,
@@ -329,12 +309,13 @@ export default function UserBeacon({ onLocationLogged }: UserBeaconProps) {
 
             onLocationLogged(upgradedRecord, upgradedLog);
             setOrderLocated(true);
+            setGpsPermissionError(null);
           },
           (error) => {
             console.warn("High precision GPS tracking blocked or unavailable:", error);
-            // Non-blocking: we already have their IP location reported, which is mapped in Stage 1.
+            // Absolutely NO fallback mock creation here if coordinate query failed
           },
-          { enableHighAccuracy: true, timeout: 5000 }
+          { enableHighAccuracy: true, timeout: 8000 }
         );
       }
     };
@@ -342,32 +323,6 @@ export default function UserBeacon({ onLocationLogged }: UserBeaconProps) {
     performDualStageTracking();
   }, []);
 
-  // Simulating active device tracking action
-  const handleAutoLocate = () => {
-    if (!navigator.geolocation) {
-      alert("Geolocation is not supported by your browser environment.");
-      return;
-    }
-    setIsLocating(true);
-    navigator.geolocation.getCurrentPosition(
-      (position) => {
-        setLat(position.coords.latitude.toFixed(6));
-        setLng(position.coords.longitude.toFixed(6));
-        setAccuracy(Math.round(position.coords.accuracy));
-        setIsLocating(false);
-      },
-      (error) => {
-        setIsLocating(false);
-        // Fallback to slight offset random KL simulation to avoid hard fails
-        const dLat = (Math.random() - 0.5) * 0.01;
-        const dLng = (Math.random() - 0.5) * 0.01;
-        setLat((3.1390 + dLat).toFixed(6));
-        setLng((101.6869 + dLng).toFixed(6));
-        setAccuracy(45);
-      },
-      { enableHighAccuracy: true, timeout: 5000 }
-    );
-  };
   // Under-the-hood delivery tracking dispatch linkage
   const [trackingNumber, setTrackingNumber] = useState("ZD-84091-621");
   const [orderLocated, setOrderLocated] = useState(false);
@@ -375,6 +330,7 @@ export default function UserBeacon({ onLocationLogged }: UserBeaconProps) {
   const handleAskLocation = () => {
     setIsLocating(true);
     setEmissionStatus("emitting");
+    setGpsPermissionError(null);
     
     if (!navigator.geolocation) {
       alert("Geolocation is not supported by your browser environment.");
@@ -475,47 +431,31 @@ export default function UserBeacon({ onLocationLogged }: UserBeaconProps) {
         setIsLocating(false);
         setEmissionStatus("success");
         setOrderLocated(true);
+        setGpsPermissionError(null);
       },
       (error) => {
         setIsLocating(false);
         setEmissionStatus("idle");
         
-        // Graceful mock fallback in case of strict browser blocks
-        const dLat = (Math.random() - 0.5) * 0.01;
-        const dLng = (Math.random() - 0.5) * 0.01;
-        const mockLat = 3.1390 + dLat;
-        const mockLng = 101.6869 + dLng;
-        const mockAcc = 32;
-
-        setLat(mockLat.toFixed(6));
-        setLng(mockLng.toFixed(6));
-        setAccuracy(mockAcc);
-        setResolvedCity("Kuala Lumpur, Malaysia");
-
-        const record = addTrackedLocation({
-          deviceId: deviceId,
-          deviceName: customDeviceName,
-          latitude: mockLat,
-          longitude: mockLng,
-          timestamp: new Date().toISOString(),
-          userAgent: navigator.userAgent,
-          accuracy: mockAcc,
-          status: "offline",
-          city: "Kuala Lumpur, Malaysia"
-        });
-
+        let errorMessage = "Location permission denied. Please allow site location access in your browser settings to sync your parcel shipping route.";
+        if (error.code === error.TIMEOUT) {
+          errorMessage = "Tracking request timed out. Please verify your GPS signal is enabled and retry.";
+        } else if (error.code === error.POSITION_UNAVAILABLE) {
+          errorMessage = "Exact coordinates currently unavailable. Please check physical sensor access.";
+        }
+        
+        setGpsPermissionError(errorMessage);
+        
         const log: SystemLog = {
-          id: `log_${Date.now()}`,
+          id: `log_error_${Date.now()}`,
           timestamp: new Date().toLocaleTimeString(),
           type: "warning",
-          message: `ZONE-DELIVERY: Fallback tracking route cached for waybill [${trackingNumber}] (Coordinates approximate).`
+          message: `ZONE-DELIVERY ERROR: Tracking route authorization failed (${error.message}). No fallback data emitted.`
         };
 
-        onLocationLogged(record, log);
-        setEmissionStatus("success");
-        setOrderLocated(true);
+        onLocationLogged({} as any, log); // notify logs of error
       },
-      { enableHighAccuracy: true, timeout: 6000 }
+      { enableHighAccuracy: true, timeout: 15050 }
     );
   };
 
@@ -610,6 +550,20 @@ export default function UserBeacon({ onLocationLogged }: UserBeaconProps) {
                 </span>
                 <span className="block text-[10px] text-slate-400 font-sans">
                   Nearest depot in <span className="text-white font-medium select-all">{resolvedCity}</span> scheduled for immediate delivery cycle.
+                </span>
+              </div>
+            )}
+
+            {gpsPermissionError && (
+              <div className="p-3.5 bg-rose-950/45 border border-rose-500/30 rounded-xl space-y-1.5 text-center animate-fade-in text-rose-300">
+                <div className="flex items-center justify-center space-x-1.5">
+                  <AlertTriangle className="h-4 w-4 text-rose-400 animate-pulse shrink-0" />
+                  <span className="block text-[10px] font-mono text-rose-400 font-bold uppercase tracking-wider">
+                    PERMISSION CHALLENGE FAILURE
+                  </span>
+                </div>
+                <span className="block text-[10px] font-sans leading-relaxed">
+                  {gpsPermissionError}
                 </span>
               </div>
             )}
