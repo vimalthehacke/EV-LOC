@@ -1,0 +1,6 @@
+{
+  "name": "LOC-SPY-TRACER",
+  "description": "A high-fidelity dark-themed location tracking cockpit and user beacon dashboard for LOC-SPY-TRACER.",
+  "requestFramePermissions": ["geolocation"],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
