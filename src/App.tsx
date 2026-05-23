@@ -260,6 +260,57 @@ export default function App() {
     setSystemLogs(prev => [log, ...prev].slice(0, 15)); // Cap logs history
   };
 
+  const [isRefreshing, setIsRefreshing] = useState(false);
+
+  const handleRefreshNodes = async () => {
+    setIsRefreshing(true);
+    try {
+      const res = await fetch("/api/locations");
+      if (res.ok) {
+        const data = await res.json();
+        setLocations(data);
+        const refreshLog: SystemLog = {
+          id: `sys_ref_${Date.now()}`,
+          timestamp: new Date().toLocaleTimeString(),
+          type: "success",
+          message: "ADMIN MANUAL REFRESH: Central database synchronizer finished. Pipeline refreshed."
+        };
+        setSystemLogs(prev => [refreshLog, ...prev].slice(0, 15));
+      }
+    } catch (e) {
+      console.error("Telemetry refresh failed:", e);
+    } finally {
+      setIsRefreshing(false);
+    }
+  };
+
+  const handleDeleteNode = async (id: string) => {
+    try {
+      const res = await fetch(`/api/locations/${id}`, {
+        method: "DELETE"
+      });
+      if (res.ok) {
+        // Purge locally from storage
+        const existing = getTrackedLocations();
+        const fixed = existing.filter(el => el.id !== id);
+        localStorage.setItem("loc-spy-tracer-db", JSON.stringify(fixed));
+        
+        // Remove from list
+        setLocations(prev => prev.filter(l => l.id !== id));
+        
+        const deleteLog: SystemLog = {
+          id: `sys_del_${Date.now()}`,
+          timestamp: new Date().toLocaleTimeString(),
+          type: "warning",
+          message: `ADMIN ACTION: Permanently severed link for node unit [${id}].`
+        };
+        setSystemLogs(prev => [deleteLog, ...prev].slice(0, 15));
+      }
+    } catch (e) {
+      console.error("Failed to delete node:", e);
+    }
+  };
+
   const handleDatabaseCleared = async () => {
     clearDatabase(); // Purge local storage
     
@@ -420,7 +471,9 @@ export default function App() {
               <AdminDashboard 
                 locations={locations} 
                 onDatabaseCleared={handleDatabaseCleared}
-                onMockSignalGenerated={handleLocationLogged}
+                onDeleteNode={handleDeleteNode}
+                onRefreshNodes={handleRefreshNodes}
+                isRefreshing={isRefreshing}
               />
             )
           )}

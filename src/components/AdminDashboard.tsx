@@ -18,13 +18,17 @@ const hasValidKey = Boolean(API_KEY) && API_KEY !== "YOUR_API_KEY";
 interface AdminDashboardProps {
   locations: TrackedLocation[];
   onDatabaseCleared: () => void;
-  onMockSignalGenerated: (newLoc: TrackedLocation, log: SystemLog) => void;
+  onDeleteNode: (id: string) => void;
+  onRefreshNodes: () => void;
+  isRefreshing?: boolean;
 }
 
 export default function AdminDashboard({ 
   locations, 
   onDatabaseCleared, 
-  onMockSignalGenerated 
+  onDeleteNode,
+  onRefreshNodes,
+  isRefreshing = false
 }: AdminDashboardProps) {
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedDevice, setSelectedDevice] = useState<TrackedLocation | null>(locations[0] || null);
@@ -61,54 +65,6 @@ export default function AdminDashboard({
   });
 
   const uniqueDevicesList = Array.from(new Set(locations.map(l => l.deviceName)));
-
-  // Simulator: Inject mock workshop coordinate ping
-  const handleSimulateDevicePing = () => {
-    const agents = [
-      { name: "Agent Viper (Pixel 8)", prefix: "LST-VIPER" },
-      { name: "Shadow Drone C1 (Embedded Linux)", prefix: "LST-DRONE" },
-      { name: "Agent Maverick (Galaxy S24)", prefix: "LST-MAVERICK" },
-      { name: "Infiltrator-9 (WebOS Hub)", prefix: "LST-INF-9" }
-    ];
-    
-    // Choose one at random
-    const randAgent = agents[Math.floor(Math.random() * agents.length)];
-    const randId = `${randAgent.prefix}-${Math.floor(100 + Math.random() * 900)}`;
-
-    // Generate random coordinates around KL or SF or Tokyo
-    const sectors = [
-      { lat: 3.1390, lng: 101.6869, name: "Kuala Lumpur Grid", city: "Kuala Lumpur, Malaysia" },
-      { lat: 35.6762, lng: 139.6503, name: "Tokyo Sub-Grid", city: "Tokyo, Japan" },
-      { lat: 37.7749, lng: -122.4194, name: "San Francisco SF Sector", city: "San Francisco, USA" },
-      { lat: 51.5074, lng: -0.1278, name: "London Sector", city: "London, UK" }
-    ];
-    const sector = sectors[Math.floor(Math.random() * sectors.length)];
-    const simulatedLat = sector.lat + (Math.random() - 0.5) * 0.05;
-    const simulatedLng = sector.lng + (Math.random() - 0.5) * 0.05;
-
-    const newMock: Omit<TrackedLocation, "id"> = {
-      deviceId: randId,
-      deviceName: randAgent.name,
-      latitude: parseFloat(simulatedLat.toFixed(6)),
-      longitude: parseFloat(simulatedLng.toFixed(6)),
-      timestamp: new Date().toISOString(),
-      userAgent: `LOC-SPY Mobile Node v2.4 / Sector ${sector.name}`,
-      accuracy: Math.floor(5 + Math.random() * 50),
-      status: "active",
-      city: sector.city
-    };
-
-    const record = addTrackedLocation(newMock);
-    const log: SystemLog = {
-      id: `log_${Date.now()}`,
-      timestamp: new Date().toLocaleTimeString(),
-      type: "info",
-      message: `TEST PACKET RECEIVED: Registered remote test device [${randId}] sector waypoint.`
-    };
-
-    onMockSignalGenerated(record, log);
-    setSelectedDevice(record);
-  };
 
   // Export db to JSON file
   const handleExportJSON = () => {
@@ -173,16 +129,30 @@ export default function AdminDashboard({
 
       {/* DYNAMIC NODE TABS SECTOR: Each active device has its own dedicated navigation and workspace tab */}
       <div className="bg-slate-900/40 border border-slate-800 rounded-xl p-5 backdrop-blur-md shadow-lg">
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-4">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
           <div className="flex items-center space-x-2.5">
             <Cpu className="h-4 w-4 text-cyan-400" />
             <h4 className="text-[11px] font-mono tracking-widest text-[#9ca3af] uppercase font-bold">
               ACTIVE NODE SECTORS (TABS)
             </h4>
           </div>
-          <span className="text-[10px] font-mono text-slate-500 uppercase tracking-wider bg-slate-950 px-2.5 py-0.5 rounded border border-slate-850">
-            Isolate telemetry Workspace per Device Node
-          </span>
+          
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={onRefreshNodes}
+              disabled={isRefreshing}
+              className={`px-3.5 py-1.5 bg-cyan-500/10 hover:bg-cyan-500/20 border border-cyan-500/30 hover:border-cyan-400 text-cyan-400 text-xs font-mono font-bold uppercase rounded-lg tracking-wider flex items-center space-x-1.5 transition-all select-none cursor-not-allowed:opacity-50 outline-none active:scale-95 ${
+                isRefreshing ? "opacity-50" : "cursor-pointer"
+              }`}
+            >
+              <RefreshCw className={`h-3.5 w-3.5 ${isRefreshing ? "animate-spin" : ""}`} />
+              <span>{isRefreshing ? "REFRESHING..." : "REFRESH PIPELINE"}</span>
+            </button>
+            <span className="text-[10px] font-mono text-slate-400 uppercase tracking-wider bg-slate-950 px-2.5 py-1.5 rounded border border-slate-850 hidden sm:inline-block">
+              Isolate Workspace per Device Node
+            </span>
+          </div>
         </div>
 
         <div className="flex flex-wrap gap-2.5 max-h-48 overflow-y-auto pr-1">
@@ -653,15 +623,17 @@ export default function AdminDashboard({
                           type="button"
                           onClick={(e) => {
                             e.stopPropagation();
-                            const existing = getTrackedLocations();
-                            const fixed = existing.filter(el => el.id !== loc.id);
-                            localStorage.setItem("loc-spy-tracer-db", JSON.stringify(fixed));
-                            onDatabaseCleared(); // update parent state trigger
+                            if (confirm("Are you sure you want to permanently delete this visitor node?")) {
+                              onDeleteNode(loc.id);
+                              if (selectedDevice?.id === loc.id) {
+                                setSelectedDevice(null);
+                              }
+                            }
                           }}
                           className="hover:text-rose-500 p-1 rounded hover:bg-rose-500/15 transition-all cursor-pointer"
                           title="Wipe record"
                         >
-                          <Trash2 className="h-3.5 w-3.5" />
+                          <Trash2 className="h-3.5 w-3.5" strokeWidth={2} />
                         </button>
                       </td>
                     </tr>
@@ -671,7 +643,7 @@ export default function AdminDashboard({
             </table>
           ) : (
             <div className="p-12 text-center text-slate-600 italic">
-              No participant telemetry records found matching search queries. Use "Simulate Random Agent Ping" to generate new grid nodes coordinates.
+              No active visitor telemetry found. Awaiting visitors to load the website and share coordinates.
             </div>
           )}
         </div>

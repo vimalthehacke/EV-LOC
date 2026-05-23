@@ -54,6 +54,18 @@ async function startServer() {
     res.json({ success: true, message: "Global coordinates tracking database has been purged." });
   });
 
+  // Delete specific node record by ID from server database
+  app.delete("/api/locations/:id", (req, res) => {
+    const { id } = req.params;
+    const prevCount = globalLocations.length;
+    globalLocations = globalLocations.filter((loc) => loc.id !== id);
+    if (globalLocations.length < prevCount) {
+      res.json({ success: true, message: `Node with ID ${id} deleted successfully.` });
+    } else {
+      res.status(404).json({ error: "Node not found" });
+    }
+  });
+
   // Single-page-app routing fallback for specific direct paths like admin-16
   app.get("/admin-16", (req, res, next) => {
     if (process.env.NODE_ENV !== "production") {
